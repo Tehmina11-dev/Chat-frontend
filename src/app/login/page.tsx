@@ -16,7 +16,7 @@ export default function LoginPage() {
 
     try {
       // Use the centralized api instance
-      const response = await api.post('/api/auth/login', formData);
+      const response = await api.post('/auth/login', formData);
       
       // 1️⃣ Save token and user info locally
       localStorage.setItem('token', response.data.token);

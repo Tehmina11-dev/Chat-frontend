@@ -23,7 +23,7 @@ export default function SignupPage() {
 
     try {
       // ✅ Use centralized API instance instead of localhost
-      const response = await api.post('/api/auth/signup', formData);
+      const response = await api.post('/auth/signup', formData);
       
       alert("Account created successfully! Redirecting to login...");
       router.push('/login');
