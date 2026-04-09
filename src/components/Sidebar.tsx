@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { Search, MoreVertical, MessageSquare, CircleDashed } from "lucide-react";
-import { Contact } from "../types/index"; // Path check
+import { Search } from "lucide-react";
+import { Contact } from "../types/index";
 import { socket } from "../lib/socket";
+import { api } from "../lib/api";
 
 interface SidebarProps {
   onSelectContact: (contact: Contact) => void;
@@ -16,11 +16,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
   const [currentUser, setCurrentUser] = useState<Contact | null>(null);
 
   useEffect(() => {
-    // Get logged-in user info and token
     const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
     const token = localStorage.getItem("token");
 
-    if (!storedUser.id) return;
+    if (!storedUser.id || !token) return;
 
     setCurrentUser({
       id: storedUser.id,
@@ -30,11 +29,50 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
       online: true,
     });
 
-    const handleActiveUsers = (userIds: number[]) => {
-      setActiveUsers(userIds.filter((id) => id !== storedUser.id));
+    socket.emit("join", storedUser.id);
+
+    // 🔥 FETCH USERS
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+
+        const res = await api.get("/auth/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const filteredUsers = res.data
+          .filter((u: any) => u.id !== storedUser.id)
+          .map((u: any) => ({
+            id: u.id,
+            name: u.username,
+            lastMsg: "",
+            time: "",
+            online: false,
+          }));
+
+        setContacts(filteredUsers);
+      } catch (err) {
+        console.error("Failed to load users:", err);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const handleUserStatus = ({ userId, online }: { userId: number; online: boolean }) => {
+    fetchUsers();
+
+    // 🔥 ACTIVE USERS
+    const handleActiveUsers = (userIds: number[]) => {
+      setActiveUsers(userIds);
+    };
+
+    // 🔥 USER ONLINE/OFFLINE
+    const handleUserStatus = ({
+      userId,
+      online,
+    }: {
+      userId: number;
+      online: boolean;
+    }) => {
       setActiveUsers((prev) => {
         if (online) {
           return prev.includes(userId) ? prev : [...prev, userId];
@@ -43,117 +81,100 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
       });
     };
 
-    socket.on("active_users", handleActiveUsers);
-    socket.on("user_status", handleUserStatus);
+    // 🔥 NEW USER REAL-TIME
+    const handleNewUser = (newUser: any) => {
+      if (newUser.id === storedUser.id) return;
 
-    const fetchUsers = async () => {
-      try {
-        const response = await axios.get("http://localhost:5000/api/auth/users", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      setContacts((prev) => {
+        const exists = prev.find((u) => u.id === newUser.id);
+        if (exists) return prev;
 
-        const otherUsers = response.data
-          .filter((u: any) => u.id !== storedUser.id)
-          .map((u: any) => ({
-            id: u.id,
-            name: u.username,
+        return [
+          ...prev,
+          {
+            id: newUser.id,
+            name: newUser.username,
             lastMsg: "",
             time: "",
-            online: activeUsers.includes(u.id),
-          }));
-
-        setContacts(otherUsers);
-      } catch (error) {
-        console.error("Failed to fetch users:", error);
-      } finally {
-        setLoading(false);
-      }
+            online: false,
+          },
+        ];
+      });
     };
 
-    if (token) fetchUsers();
+    socket.on("active_users", handleActiveUsers);
+    socket.on("user_status", handleUserStatus);
+    socket.on("new_user", handleNewUser);
 
     return () => {
       socket.off("active_users", handleActiveUsers);
       socket.off("user_status", handleUserStatus);
+      socket.off("new_user", handleNewUser);
     };
   }, []);
 
+  // 🔥 sync online status
   useEffect(() => {
     setContacts((prev) =>
-      prev.map((contact) => ({
-        ...contact,
-        online: activeUsers.includes(contact.id),
+      prev.map((c) => ({
+        ...c,
+        online: activeUsers.includes(c.id),
       }))
     );
   }, [activeUsers]);
 
   return (
-    <div className="w-[30%] min-w-[300px] h-full border-r border-gray-300 flex flex-col bg-white">
-      {/* Header - Current User Profile */}
+    <div className="w-[30%] min-w-[300px] h-full border-r flex flex-col bg-white">
+
+      {/* Current User */}
       {currentUser && (
         <div className="p-3 bg-[#f0f2f5] flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-[#10B981] flex items-center justify-center text-white font-bold uppercase">
+          <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold uppercase">
             {currentUser.name[0]}
           </div>
-          <span className="font-medium">{currentUser.name}</span>
+          <span>{currentUser.name}</span>
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="p-2 bg-white border-b border-gray-100">
-        <div className="flex items-center bg-[#f0f2f5] px-3 py-1.5 rounded-lg">
-          <Search size={16} className="text-gray-500 mr-4" />
+      {/* Search */}
+      <div className="p-2 border-b">
+        <div className="flex items-center bg-[#f0f2f5] px-3 py-2 rounded-lg">
+          <Search size={16} className="mr-2 text-gray-500" />
           <input
-            type="text"
-            placeholder="Search or start new chat"
-            className="bg-transparent text-sm outline-none w-full py-1 placeholder:text-gray-500 text-black"
+            placeholder="Search users"
+            className="bg-transparent w-full outline-none text-black"
           />
         </div>
       </div>
 
-      {/* Contacts List */}
-      <div className="flex-1 overflow-y-auto bg-white scrollbar-hide">
+      {/* Users */}
+      <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="flex justify-center p-10">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#00a884]"></div>
-          </div>
-        ) : contacts.length > 0 ? (
-          contacts.map((contact) => (
+          <div className="p-5 text-center text-gray-500">Loading...</div>
+        ) : (
+          contacts.map((c) => (
             <div
-              key={contact.id}
-              onClick={() => onSelectContact(contact)}
-              className="flex items-center p-3 cursor-pointer hover:bg-[#f5f6f6] border-b border-gray-50 transition active:bg-[#ebebeb]"
+              key={c.id}
+              onClick={() => onSelectContact(c)}
+              className="flex items-center p-3 hover:bg-gray-100 cursor-pointer border-b"
             >
-              <div className="w-12 h-12 rounded-full bg-[#bed0f9] mr-3 flex items-center justify-center font-semibold text-[#1E3A8A] uppercase border border-white relative">
-                {contact.name[0]}
+              <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center font-bold relative">
+                {c.name[0]}
                 <span
                   className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                    contact.online ? "bg-green-500" : "bg-gray-400"
+                    c.online ? "bg-green-500" : "bg-gray-400"
                   }`}
                 />
               </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-normal text-[16px] text-[#111b21]">{contact.name}</h3>
-                    {contact.online && (
-                      <span className="text-[10px] text-green-600 uppercase tracking-[0.1em]">
-                        online
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[12px] text-gray-500">{contact.time || ""}</span>
-                </div>
-                <p className="text-sm text-[#667781] truncate">
-                  {contact.lastMsg || "Click to start conversation"}
+
+              <div className="ml-3">
+                <p className="font-medium text-black">{c.name}</p>
+                <p className="text-xs text-gray-500">
+                  {c.online ? "online" : "offline"}
                 </p>
               </div>
             </div>
           ))
-        ) : (
-          <div className="p-10 text-center text-gray-400 text-sm">
-            No other users found on the platform.
-          </div>
         )}
       </div>
     </div>
