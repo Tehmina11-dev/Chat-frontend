@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useRouter } from 'next/navigation';
+import { api } from '../../lib/api'; // ✅ use your centralized axios instance
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -15,13 +15,14 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', formData);
+      // Use the centralized api instance
+      const response = await api.post('/api/auth/login', formData);
       
-      // 1. Token aur User Info save karein
+      // 1️⃣ Save token and user info locally
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
 
-      // 2. Chat page par navigate karein
+      // 2️⃣ Navigate to chat page
       router.push('/chat');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Invalid email or password');
@@ -41,14 +42,14 @@ export default function LoginPage() {
             type="email" 
             placeholder="Email" 
             className="w-full p-3 border rounded outline-[#00a884] text-black bg-white"
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             required 
           />
           <input 
             type="password" 
             placeholder="Password" 
             className="w-full p-3 border rounded outline-[#00a884] text-black bg-white"
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             required 
           />
           <button 
