@@ -1,46 +1,89 @@
-// components/messageinput.tsx
 "use client";
-import React, { useState } from "react";
+
+import React, { useState, useRef } from "react";
 import { Smile, Plus, Mic, Send } from "lucide-react";
+import EmojiPicker from "emoji-picker-react";
 
-interface Props {
-  onSendMessage: (msg: string) => void;
-}
-
-const MessageInput: React.FC<Props> = ({ onSendMessage }) => {
+export default function MessageInput({ onSendMessage }: any) {
   const [msg, setMsg] = useState("");
+  const [showEmoji, setShowEmoji] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleSend = () => {
+  // 🟢 SEND TEXT MESSAGE
+  const send = () => {
     if (!msg.trim()) return;
-    onSendMessage(msg);
-    setMsg(""); // Clear input after sending
+
+    onSendMessage({
+      message_text: msg,
+    });
+
+    setMsg("");
+  };
+
+  // 🟢 FILE HANDLER (FIXED + MERGED)
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    onSendMessage({
+      file_url: URL.createObjectURL(file),
+      message_text: file.name, // optional filename
+    });
+
+    // reset input so same file can be selected again
+    e.target.value = "";
+  };
+
+  // 🟢 EMOJI HANDLER
+  const handleEmoji = (emojiData: any) => {
+    setMsg((prev) => prev + emojiData.emoji);
   };
 
   return (
-    <div className="p-2 bg-[#f0f2f5] flex items-center gap-4">
-      <div className="flex gap-4 text-[#54656f] ml-2">
-        <Smile size={24} className="cursor-pointer" />
-        <Plus size={24} className="cursor-pointer" />
-      </div>
+    <div className="p-2 flex items-center gap-3 bg-white relative">
 
-      <input
-        type="text"
-        value={msg}
-        onChange={(e) => setMsg(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        placeholder="Type a message"
-        className="flex-1 py-2 px-4 rounded-lg bg-white outline-none text-sm text-black"
+      {/* EMOJI BUTTON */}
+      <Smile
+        className="cursor-pointer"
+        onClick={() => setShowEmoji(!showEmoji)}
       />
 
-      <div className="mr-2 text-[#54656f]">
-        {msg ? (
-          <Send size={24} className="cursor-pointer text-[#00a884]" onClick={handleSend} />
-        ) : (
-          <Mic size={24} className="cursor-pointer" />
-        )}
-      </div>
+      {showEmoji && (
+        <div className="absolute bottom-14 left-2 z-50">
+          <EmojiPicker onEmojiClick={handleEmoji} />
+        </div>
+      )}
+
+      {/* FILE UPLOAD */}
+      <Plus
+        className="cursor-pointer"
+        onClick={() => fileRef.current?.click()}
+      />
+
+      <input
+        type="file"
+        hidden
+        ref={fileRef}
+        onChange={handleFile}
+      />
+
+      {/* TEXT INPUT */}
+      <input
+        value={msg}
+        onChange={(e) => setMsg(e.target.value)}
+        className="flex-1 border p-2 rounded"
+        placeholder="Type message..."
+      />
+
+      {/* SEND / MIC */}
+      {msg ? (
+        <Send
+          className="cursor-pointer text-green-600"
+          onClick={send}
+        />
+      ) : (
+        <Mic className="text-gray-500" />
+      )}
     </div>
   );
-};
-
-export default MessageInput;
+}

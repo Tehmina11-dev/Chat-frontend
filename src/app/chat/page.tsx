@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
@@ -6,27 +7,27 @@ import ChatWindow from "../../components/ChatWindow";
 import MessageInput from "../../components/MessageInput";
 import { Contact, Message } from "../../types/index";
 import { socket } from "../../lib/socket";
-import { api } from "../../lib/api"; // ✅ centralized axios instance
+import { api } from "../../lib/api";
 
 export default function ChatPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentUser, setCurrentUser] = useState<Contact | null>(null);
 
-  const selectedContactRef = useRef<Contact | null>(null);
-  const currentUserRef = useRef<Contact | null>(null);
+  const selectedRef = useRef<Contact | null>(null);
+  const currentRef = useRef<Contact | null>(null);
 
   const router = useRouter();
 
   useEffect(() => {
-    selectedContactRef.current = selectedContact;
+    selectedRef.current = selectedContact;
   }, [selectedContact]);
 
   useEffect(() => {
-    currentUserRef.current = currentUser;
+    currentRef.current = currentUser;
   }, [currentUser]);
 
-  // Load user from localStorage & connect socket
+  // AUTH + SOCKET
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const token = localStorage.getItem("token");
@@ -47,87 +48,116 @@ export default function ChatPage() {
     socket.connect();
     socket.emit("join", user.id);
 
-    const handleReceiveMessage = (newMessage: Message) => {
-      const selected = selectedContactRef.current;
-      const current = currentUserRef.current;
+    const handleMsg = (msg: Message) => {
+      const selected = selectedRef.current;
+      const current = currentRef.current;
+
       if (!selected || !current) return;
 
-      const belongsToChat =
-        (newMessage.sender_id === selected.id && newMessage.receiver_id === current.id) ||
-        (newMessage.sender_id === current.id && newMessage.receiver_id === selected.id);
+      const valid =
+        (msg.sender_id === selected.id && msg.receiver_id === current.id) ||
+        (msg.sender_id === current.id && msg.receiver_id === selected.id);
 
-      if (belongsToChat) {
-        setMessages((prev) => [...prev, newMessage]);
+      if (valid) {
+        setMessages((prev) => [...prev, msg]);
       }
     };
 
-    socket.on("receive_message", handleReceiveMessage);
+    socket.on("receive_message", handleMsg);
 
     return () => {
-      socket.off("receive_message", handleReceiveMessage);
+      socket.off("receive_message", handleMsg);
       socket.disconnect();
     };
   }, [router]);
 
-  // Fetch chat history when contact changes
-  useEffect(() => {
-    const fetchHistory = async () => {
-      if (!selectedContact || !currentUser) return;
+  // REFRESH MESSAGES
+  const refreshMessages = async () => {
+    if (!selectedContact || !currentUser) return;
 
-      try {
-        const token = localStorage.getItem("token");
-        const response = await api.get(`/messages/${selectedContact.id}`, {
+    try {
+      const token = localStorage.getItem("token");
+
+      const res = await api.get(
+        `/messages/history/${currentUser.id}/${selectedContact.id}`,
+        {
           headers: { Authorization: `Bearer ${token}` },
-        });
-        setMessages(response.data);
-      } catch (error) {
-        console.error("Failed to load chat history:", error);
-        setMessages([]);
-      }
-    };
+        }
+      );
 
-    fetchHistory();
+      setMessages(res.data);
+    } catch (err) {
+      console.error("Refresh failed:", err);
+      setMessages([]);
+    }
+  };
+
+  // AUTO LOAD HISTORY
+  useEffect(() => {
+    refreshMessages();
   }, [selectedContact, currentUser]);
 
-  const handleSendMessage = (text: string) => {
-    if (!text.trim() || !selectedContact || !currentUser) return;
+  // 💬 SEND MESSAGE (TEXT + FILE SUPPORT MERGED)
+  const handleSendMessage = (payload: any) => {
+    if (!selectedContact || !currentUser) return;
 
-    const messageData: Message = {
+    const messageData = {
       sender_id: currentUser.id,
       receiver_id: selectedContact.id,
-      message_text: text,
-      created_at: new Date().toISOString(),
+      message_text: payload.message_text || "",
+      file_url: payload.file_url || null,
     };
 
     socket.emit("send_message", messageData);
     setMessages((prev) => [...prev, messageData]);
   };
 
+  // LOGOUT
+  const handleLogout = () => {
+    localStorage.clear();
+    socket.disconnect();
+    router.push("/login");
+  };
+
   if (!currentUser) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center text-gray-500">
-        Loading user...
-      </div>
-    );
+    return <div className="p-10 text-center">Loading...</div>;
   }
 
   return (
     <div className="flex h-screen w-screen">
-      <Sidebar onSelectContact={(c) => setSelectedContact(c)} />
+
+      <Sidebar onSelectContact={setSelectedContact} />
 
       <div className="flex-1 flex flex-col bg-[#efeae2]">
+
+        {/* HEADER */}
+        <div className="flex justify-between items-center bg-white p-3 border-b">
+          <h2 className="font-semibold">
+            {selectedContact ? selectedContact.name : "Chat"}
+          </h2>
+
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 text-white px-3 py-1 rounded"
+          >
+            Logout
+          </button>
+        </div>
+
         {selectedContact ? (
           <>
             <ChatWindow
               contact={selectedContact}
               messages={messages}
               currentUserId={currentUser.id}
+              refreshMessages={refreshMessages}
             />
+
             <MessageInput onSendMessage={handleSendMessage} />
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-            Select a contact to start chatting
+          <div className="flex-1 flex items-center justify-center text-gray-400">
+            Select a user to start chat
           </div>
         )}
       </div>

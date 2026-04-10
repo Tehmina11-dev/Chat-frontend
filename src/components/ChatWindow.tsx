@@ -1,4 +1,5 @@
 "use client";
+
 import React from "react";
 import { Contact, Message } from "../types/index";
 import ChatBubble from "./ChatBubble";
@@ -6,28 +7,51 @@ import ChatBubble from "./ChatBubble";
 interface ChatWindowProps {
   contact: Contact;
   messages: Message[];
-  currentUserId: number; // Needed to identify own messages
+  currentUserId: number;
+  refreshMessages: () => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
   contact,
   messages,
   currentUserId,
+  refreshMessages,
 }) => {
   return (
     <div className="flex-1 p-4 overflow-y-auto flex flex-col bg-[#efeae2]">
-      {/* Contact Name Header */}
-      <h2 className="text-xl font-semibold mb-4">{contact.name}</h2>
 
-      {/* Messages */}
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold">
+          {contact.name}
+        </h2>
+
+        {/* Optional refresh button (useful for debugging / manual sync) */}
+        <button
+          onClick={refreshMessages}
+          className="text-sm bg-white px-3 py-1 rounded shadow hover:bg-gray-100"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {/* MESSAGES */}
       <div className="flex flex-col gap-2">
-        {messages.map((msg, idx) => (
-          <ChatBubble
-            key={idx}
-            message={msg}
-            isOwnMessage={msg.sender_id === currentUserId} // Aligns right if sent by current user
-          />
-        ))}
+        {messages?.length > 0 ? (
+          messages.map((msg, idx) => (
+            <ChatBubble
+              key={idx}
+              message={msg}
+              isOwnMessage={msg.sender_id === currentUserId}
+              currentUserId={currentUserId}
+              refreshMessages={refreshMessages}
+            />
+          ))
+        ) : (
+          <div className="text-center text-gray-400 mt-10">
+            No messages yet
+          </div>
+        )}
       </div>
     </div>
   );

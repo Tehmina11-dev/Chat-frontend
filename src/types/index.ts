@@ -2,7 +2,12 @@ export interface Message {
   id?: number;
   sender_id: number;
   receiver_id: number;
-  message_text: string;
+
+  message_text?: string;
+
+  file_url?: string | null;
+  audio_url?: string | null;
+
   created_at?: string;
 }
 
