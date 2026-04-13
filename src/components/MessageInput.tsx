@@ -20,17 +20,31 @@ export default function MessageInput({ onSendMessage }: any) {
     setMsg("");
   };
 
-  // 🟢 FILE HANDLER (FIXED + MERGED)
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 🟢 FILE UPLOAD (UPDATED - REAL BACKEND)
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    onSendMessage({
-      file_url: URL.createObjectURL(file),
-      message_text: file.name, // optional filename
-    });
+    const formData = new FormData();
+    formData.append("file", file);
 
-    // reset input so same file can be selected again
+    try {
+      const res = await fetch("http://localhost:5000/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      onSendMessage({
+        file_url: data.file_url,
+        file_type: data.file_type,
+        message_text: file.name,
+      });
+    } catch (err) {
+      console.error("Upload failed:", err);
+    }
+
     e.target.value = "";
   };
 
@@ -42,7 +56,7 @@ export default function MessageInput({ onSendMessage }: any) {
   return (
     <div className="p-2 flex items-center gap-3 bg-white relative">
 
-      {/* EMOJI BUTTON */}
+      {/* EMOJI */}
       <Smile
         className="cursor-pointer"
         onClick={() => setShowEmoji(!showEmoji)}

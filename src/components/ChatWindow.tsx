@@ -26,7 +26,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           {contact.name}
         </h2>
 
-        {/* Optional refresh button (useful for debugging / manual sync) */}
         <button
           onClick={refreshMessages}
           className="text-sm bg-white px-3 py-1 rounded shadow hover:bg-gray-100"

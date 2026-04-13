@@ -20,7 +20,6 @@ const ChatBubble: React.FC<Props> = ({
 }) => {
   const [showModal, setShowModal] = useState(false);
 
-  // 🗑 DELETE MESSAGE
   const handleDelete = async (type: "me" | "everyone") => {
     try {
       await api.put(`/messages/delete/${message.id}`, {
@@ -31,9 +30,15 @@ const ChatBubble: React.FC<Props> = ({
       setShowModal(false);
       refreshMessages();
     } catch (err) {
-      console.error("Delete failed:", err);
+      console.error(err);
     }
   };
+
+  // 🔥 IMAGE DETECTION (ROBUST)
+  const isImage =
+    message.file_type?.startsWith("image/") ||
+    message.file_url?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ||
+    message.file_url?.startsWith("blob:");
 
   return (
     <div
@@ -55,14 +60,14 @@ const ChatBubble: React.FC<Props> = ({
           <p className="text-sm">{message.message_text}</p>
         )}
 
-        {/* 📎 FILE / IMAGE SUPPORT */}
+        {/* 📎 FILE / IMAGE */}
         {message.file_url && (
           <div className="mt-2">
-            {message.file_url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+            {isImage ? (
               <img
                 src={message.file_url}
                 className="max-w-[200px] rounded"
-                alt="file"
+                alt="image"
               />
             ) : (
               <a
@@ -77,7 +82,7 @@ const ChatBubble: React.FC<Props> = ({
           </div>
         )}
 
-        {/* 🕒 TIME (optional future use) */}
+        {/* 🕒 TIME */}
         {message.created_at && (
           <div className="text-[10px] text-gray-500 mt-1 text-right">
             {new Date(message.created_at).toLocaleTimeString([], {

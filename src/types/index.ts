@@ -4,6 +4,7 @@ export interface Message {
   receiver_id: number;
 
   message_text?: string;
+   file_type?: string; 
 
   file_url?: string | null;
   audio_url?: string | null;

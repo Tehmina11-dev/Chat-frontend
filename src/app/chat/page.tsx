@@ -27,7 +27,7 @@ export default function ChatPage() {
     currentRef.current = currentUser;
   }, [currentUser]);
 
-  // AUTH + SOCKET
+  // 🔐 AUTH + SOCKET
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const token = localStorage.getItem("token");
@@ -71,7 +71,7 @@ export default function ChatPage() {
     };
   }, [router]);
 
-  // REFRESH MESSAGES
+  // 🔄 REFRESH MESSAGES
   const refreshMessages = async () => {
     if (!selectedContact || !currentUser) return;
 
@@ -92,12 +92,12 @@ export default function ChatPage() {
     }
   };
 
-  // AUTO LOAD HISTORY
+  // 📥 AUTO LOAD HISTORY
   useEffect(() => {
     refreshMessages();
   }, [selectedContact, currentUser]);
 
-  // 💬 SEND MESSAGE (TEXT + FILE SUPPORT MERGED)
+  // 💬 SEND MESSAGE (FINAL VERSION WITH file_type)
   const handleSendMessage = (payload: any) => {
     if (!selectedContact || !currentUser) return;
 
@@ -106,13 +106,16 @@ export default function ChatPage() {
       receiver_id: selectedContact.id,
       message_text: payload.message_text || "",
       file_url: payload.file_url || null,
+      file_type: payload.file_type || null, // ✅ ADDED
     };
 
     socket.emit("send_message", messageData);
+
+    // ✅ Optimistic UI update
     setMessages((prev) => [...prev, messageData]);
   };
 
-  // LOGOUT
+  // 🚪 LOGOUT
   const handleLogout = () => {
     localStorage.clear();
     socket.disconnect();
@@ -125,11 +128,9 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen w-screen">
-
       <Sidebar onSelectContact={setSelectedContact} />
 
       <div className="flex-1 flex flex-col bg-[#efeae2]">
-
         {/* HEADER */}
         <div className="flex justify-between items-center bg-white p-3 border-b">
           <h2 className="font-semibold">
