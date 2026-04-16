@@ -10,6 +10,11 @@ export interface Message {
   audio_url?: string | null;
 
   created_at?: string;
+  
+  // Delete flags
+  deleted_for_everyone?: boolean;
+  deleted_for_sender?: boolean;
+  deleted_for_receiver?: boolean;
 }
 
 export interface User {

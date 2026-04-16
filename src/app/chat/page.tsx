@@ -65,12 +65,34 @@ export default function ChatPage() {
       }
     };
 
+    // 🗑️ HANDLE MESSAGE DELETION
+    const handleMessageDeleted = (deletedMsg: Message) => {
+      const selected = selectedRef.current;
+      const current = currentRef.current;
+
+      if (!selected || !current) return;
+
+      const valid =
+        (deletedMsg.sender_id === selected.id && deletedMsg.receiver_id === current.id) ||
+        (deletedMsg.sender_id === current.id && deletedMsg.receiver_id === selected.id);
+
+      if (valid) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === deletedMsg.id ? { ...msg, ...deletedMsg } : msg
+          )
+        );
+      }
+    };
+
     socket.on("receive_message", handleMsg);
     socket.on("message_sent", handleMsg);
+    socket.on("message_deleted", handleMessageDeleted);
 
     return () => {
       socket.off("receive_message", handleMsg);
       socket.off("message_sent", handleMsg);
+      socket.off("message_deleted", handleMessageDeleted);
       socket.disconnect();
     };
   }, [router]);

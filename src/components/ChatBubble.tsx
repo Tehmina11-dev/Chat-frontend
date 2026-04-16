@@ -3,7 +3,8 @@ import React, { useState, useRef } from "react";
 import { Message } from "../types";
 import DeleteModal from "./DeleteModal";
 import { api } from "../lib/api";
-import { Play, Pause, Download, FileText, Loader2 } from "lucide-react";
+import { socket } from "../lib/socket";
+import { Play, Pause, Download, FileText, Loader2, Trash2 } from "lucide-react";
 
 interface Props {
   message: Message;
@@ -22,18 +23,42 @@ const ChatBubble: React.FC<Props> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapRef = useRef<number>(0);
 
   const handleDelete = async (type: "me" | "everyone") => {
     try {
-      await api.put(`/messages/delete/${message.id}`, {
+      setIsLoading(true);
+
+      // Send delete request via API (primary method)
+      const response = await api.put(`/messages/delete/${message.id}`, {
         userId: currentUserId,
         type,
       });
-      setShowModal(false);
-      refreshMessages();
-    } catch (err) {
-      console.error(err);
+
+      if (response.status === 200) {
+        // Also emit socket event for real-time update to other users
+        socket.emit("delete_message", {
+          messageId: message.id,
+          userId: currentUserId,
+          type,
+          sender_id: message.sender_id,
+          receiver_id: message.receiver_id,
+        });
+
+        setShowModal(false);
+        refreshMessages();
+      } else {
+        alert("Failed to delete message. Please try again.");
+      }
+    } catch (err: any) {
+      console.error("Delete error:", err);
+      const errorMsg = err?.response?.data?.error || "Failed to delete message";
+      alert(errorMsg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -43,6 +68,27 @@ const ChatBubble: React.FC<Props> = ({
     message.file_url?.startsWith("blob:");
 
   const isAudio = !!(message.audio_url && message.message_text?.includes("Voice message"));
+
+  // 🗑️ CHECK IF MESSAGE IS DELETED FOR CURRENT USER
+  const isDeletedForMe = isOwnMessage
+    ? message.deleted_for_sender
+    : message.deleted_for_receiver;
+
+  const isDeletedForEveryone = message.deleted_for_everyone;
+
+  // If deleted for everyone OR deleted for me, show deletion notice
+  const showDeletedMessage = isDeletedForEveryone || isDeletedForMe;
+
+  // 🗑️ CHECK IF MESSAGE CAN BE DELETED (Within 2 hours - like WhatsApp)
+  const isMessageDeletable = () => {
+    if (!message.created_at) return false;
+    const messageTime = new Date(message.created_at).getTime();
+    const now = new Date().getTime();
+    const twoHoursInMs = 2 * 60 * 60 * 1000;
+    return now - messageTime < twoHoursInMs;
+  };
+
+  const canDeleteMessage = isMessageDeletable() && !showDeletedMessage;
 
   const toggleAudioPlayback = async () => {
     if (!audioRef.current) return;
@@ -76,26 +122,57 @@ const ChatBubble: React.FC<Props> = ({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  // 📱 HANDLE DOUBLE TAP FOR MOBILE
+  const handleTap = () => {
+    if (showDeletedMessage || !canDeleteMessage) return;
+
+    const now = Date.now();
+    const timeDiff = now - lastTapRef.current;
+
+    if (timeDiff < 300 && timeDiff > 0) {
+      // Double tap detected
+      setShowModal(true);
+      lastTapRef.current = 0;
+    } else {
+      // First tap
+      lastTapRef.current = now;
+    }
+  };
+
   return (
     <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-4 px-4`}>
       <div
-        className={`relative max-w-[85%] sm:max-w-[70%] p-3 shadow-sm transition-all duration-200 cursor-pointer ${
-          isOwnMessage
-            ? "bg-[#dcf8c6] text-black rounded-t-xl rounded-bl-xl rounded-br-sm"
-            : "bg-[#e5e5ea] text-black rounded-t-xl rounded-br-xl rounded-bl-sm"
+        className={`relative max-w-[85%] sm:max-w-[70%] p-3 shadow-sm transition-all duration-200 ${
+          showDeletedMessage
+            ? "bg-gray-200 text-gray-500 italic rounded-lg cursor-default"
+            : `cursor-pointer hover:shadow-md active:scale-95 touch-manipulation ${
+              isOwnMessage
+                ? "bg-[#dcf8c6] text-black rounded-t-xl rounded-bl-xl rounded-br-sm"
+                : "bg-[#e5e5ea] text-black rounded-t-xl rounded-br-xl rounded-bl-sm"
+            }`
         }`}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          setShowModal(true);
+        onDoubleClick={() => {
+          if (!showDeletedMessage && canDeleteMessage) {
+            setShowModal(true);
+          }
         }}
+        onClick={handleTap}
       >
+        {/* 🗑️ DELETED MESSAGE */}
+        {showDeletedMessage && (
+          <div className="flex items-center gap-2">
+            <Trash2 size={16} className="flex-shrink-0" />
+            <p className="text-sm">This message was deleted</p>
+          </div>
+        )}
+
         {/* 💬 TEXT */}
-        {message.message_text && !isAudio && (
+        {!showDeletedMessage && message.message_text && !isAudio && (
           <p className="font-sans break-words leading-relaxed">{message.message_text}</p>
         )}
 
         {/* 🎙️ AUDIO MESSAGE */}
-        {isAudio && message.audio_url && (
+        {!showDeletedMessage && isAudio && message.audio_url && (
           <div className="flex items-center gap-3 bg-white/50 p-3 rounded-lg max-w-xs">
             <audio
               ref={audioRef}
@@ -106,10 +183,16 @@ const ChatBubble: React.FC<Props> = ({
               onLoadedMetadata={() => setAudioDuration(audioRef.current?.duration || 0)}
               onLoadStart={() => setIsLoading(true)}
               onCanPlay={() => setIsLoading(false)}
+              crossOrigin="anonymous"
+              controlsList="nodownload"
               className="hidden"
             />
             <button
-              onClick={toggleAudioPlayback}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleAudioPlayback();
+              }}
               disabled={isLoading}
               className={`p-2 rounded-full transition flex-shrink-0 ${
                 isLoading
@@ -154,7 +237,7 @@ const ChatBubble: React.FC<Props> = ({
         )}
 
         {/* 📎 FILE / IMAGE */}
-        {message.file_url && !isAudio && (
+        {!showDeletedMessage && message.file_url && !isAudio && (
           <div className={message.message_text ? "mt-3" : ""}>
             {isImage ? (
               <div className="rounded-xl overflow-hidden border-2 border-white/50 shadow-sm">
@@ -200,6 +283,7 @@ const ChatBubble: React.FC<Props> = ({
           onClose={() => setShowModal(false)}
           onDeleteForMe={() => handleDelete("me")}
           onDeleteForEveryone={() => handleDelete("everyone")}
+          isLoading={isLoading}
         />
       )}
     </div>
