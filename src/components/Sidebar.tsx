@@ -31,7 +31,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
       online: true,
     });
 
-    socket.emit("join", user.id);
+    // socket.emit("join", user.id); // Removed - this is called in ChatPage
+
 
     const fetchUsers = async () => {
       try {

@@ -64,9 +64,11 @@ export default function ChatPage() {
     };
 
     socket.on("receive_message", handleMsg);
+    socket.on("message_sent", handleMsg);
 
     return () => {
       socket.off("receive_message", handleMsg);
+      socket.off("message_sent", handleMsg);
       socket.disconnect();
     };
   }, [router]);
@@ -110,9 +112,7 @@ export default function ChatPage() {
     };
 
     socket.emit("send_message", messageData);
-
-    // ✅ Optimistic UI update
-    setMessages((prev) => [...prev, messageData]);
+    // ✅ Removed optimistic update - message will come via socket event
   };
 
   // 🚪 LOGOUT
