@@ -3,13 +3,18 @@
 import React, { useState, useRef } from "react";
 import { Smile, Plus, Mic, Send } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
+import VoiceRecorder from "./VoiceRecorder";
 
 export default function MessageInput({ onSendMessage }: any) {
   const [msg, setMsg] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioPreview, setAudioPreview] = useState<{
+    url: string;
+    blob: Blob;
+  } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // 🟢 SEND TEXT MESSAGE
   const send = () => {
     if (!msg.trim()) return;
 
@@ -20,7 +25,6 @@ export default function MessageInput({ onSendMessage }: any) {
     setMsg("");
   };
 
-  // 🟢 FILE UPLOAD (UPDATED - REAL BACKEND)
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -48,17 +52,57 @@ export default function MessageInput({ onSendMessage }: any) {
     e.target.value = "";
   };
 
-  // 🟢 EMOJI HANDLER
   const handleEmoji = (emojiData: any) => {
     setMsg((prev) => prev + emojiData.emoji);
   };
 
+  const handleAudioRecorded = async (audioUrl: string, audioBlob: Blob) => {
+    const formData = new FormData();
+    formData.append("file", audioBlob, "voice_message.wav");
+
+    try {
+      const res = await fetch("http://localhost:5000/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      onSendMessage({
+        audio_url: data.file_url,
+        message_text: "🎙️ Voice message",
+      });
+
+      setAudioPreview(null);
+      setIsRecording(false);
+    } catch (err) {
+      console.error("Audio upload failed:", err);
+    }
+  };
+
+  const handleCancelRecording = () => {
+    setIsRecording(false);
+    setAudioPreview(null);
+  };
+
+  if (isRecording) {
+    return (
+      <div className="p-2 sm:p-3 bg-white border-t">
+        <VoiceRecorder
+          onAudioRecorded={handleAudioRecorded}
+          onCancel={handleCancelRecording}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-2 flex items-center gap-3 bg-white relative">
+    <div className="p-2 sm:p-3 flex items-center gap-2 sm:gap-3 bg-white relative border-t">
 
       {/* EMOJI */}
       <Smile
-        className="cursor-pointer"
+        size={20}
+        className="cursor-pointer flex-shrink-0 text-gray-600 hover:text-gray-900"
         onClick={() => setShowEmoji(!showEmoji)}
       />
 
@@ -70,7 +114,8 @@ export default function MessageInput({ onSendMessage }: any) {
 
       {/* FILE UPLOAD */}
       <Plus
-        className="cursor-pointer"
+        size={20}
+        className="cursor-pointer flex-shrink-0 text-gray-600 hover:text-gray-900"
         onClick={() => fileRef.current?.click()}
       />
 
@@ -85,18 +130,30 @@ export default function MessageInput({ onSendMessage }: any) {
       <input
         value={msg}
         onChange={(e) => setMsg(e.target.value)}
-        className="flex-1 border p-2 rounded"
+        className="flex-1 border p-2 rounded text-sm"
         placeholder="Type message..."
+        onKeyDown={(e) => e.key === "Enter" && send()}
       />
 
       {/* SEND / MIC */}
       {msg ? (
         <Send
-          className="cursor-pointer text-green-600"
+          size={20}
+          className="cursor-pointer text-green-600 flex-shrink-0 hover:text-green-700"
           onClick={send}
         />
       ) : (
-        <Mic className="text-gray-500" />
+        /* Wrapped in a span to fix the 'title' prop error and maintain tooltips */
+        <span 
+          title="Record voice message" 
+          className="flex items-center justify-center cursor-pointer"
+          onClick={() => setIsRecording(true)}
+        >
+          <Mic
+            size={20}
+            className="text-gray-600 hover:text-green-600 flex-shrink-0 transition"
+          />
+        </span>
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import ChatWindow from "../../components/ChatWindow";
 import MessageInput from "../../components/MessageInput";
+import { Menu } from "lucide-react";
 import { Contact, Message } from "../../types/index";
 import { socket } from "../../lib/socket";
 import { api } from "../../lib/api";
@@ -13,6 +14,7 @@ export default function ChatPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentUser, setCurrentUser] = useState<Contact | null>(null);
+  const [showSidebar, setShowSidebar] = useState(false);
 
   const selectedRef = useRef<Contact | null>(null);
   const currentRef = useRef<Contact | null>(null);
@@ -99,7 +101,7 @@ export default function ChatPage() {
     refreshMessages();
   }, [selectedContact, currentUser]);
 
-  // 💬 SEND MESSAGE (FINAL VERSION WITH file_type)
+  // 💬 SEND MESSAGE (FINAL VERSION WITH file_type AND audio_url)
   const handleSendMessage = (payload: any) => {
     if (!selectedContact || !currentUser) return;
 
@@ -109,6 +111,7 @@ export default function ChatPage() {
       message_text: payload.message_text || "",
       file_url: payload.file_url || null,
       file_type: payload.file_type || null, // ✅ ADDED
+      audio_url: payload.audio_url || null, // ✅ ADDED FOR VOICE MESSAGES
     };
 
     socket.emit("send_message", messageData);
@@ -127,19 +130,48 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen w-screen">
-      <Sidebar onSelectContact={setSelectedContact} />
+    <div className="flex h-screen w-screen overflow-hidden">
+      {/* SIDEBAR - DESKTOP */}
+      <div className="hidden md:flex md:w-[30%] md:min-w-[300px] md:flex-col">
+        <Sidebar onSelectContact={setSelectedContact} />
+      </div>
 
-      <div className="flex-1 flex flex-col bg-[#efeae2]">
+      {/* SIDEBAR - MOBILE OVERLAY */}
+      {showSidebar && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 md:hidden bg-black bg-opacity-50 z-30"
+            onClick={() => setShowSidebar(false)}
+          />
+          {/* Sidebar */}
+          <div className="fixed left-0 top-0 h-full w-[75%] max-w-[300px] md:hidden z-40">
+            <Sidebar onSelectContact={(contact) => {
+              setSelectedContact(contact);
+              setShowSidebar(false);
+            }} />
+          </div>
+        </>
+      )}
+
+      <div className="flex-1 flex flex-col bg-[#efeae2] md:w-[70%]">
         {/* HEADER */}
-        <div className="flex justify-between items-center bg-white p-3 border-b">
-          <h2 className="font-semibold">
-            {selectedContact ? selectedContact.name : "Chat"}
-          </h2>
+        <div className="flex justify-between items-center bg-white p-3 border-b gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <button
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="md:hidden p-1 hover:bg-gray-100 rounded"
+            >
+              <Menu size={24} />
+            </button>
+            <h2 className="font-semibold text-sm sm:text-base truncate">
+              {selectedContact ? selectedContact.name : "Chat"}
+            </h2>
+          </div>
 
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-3 py-1 rounded"
+            className="bg-red-500 text-white px-2 sm:px-3 py-1 text-xs sm:text-sm rounded whitespace-nowrap"
           >
             Logout
           </button>

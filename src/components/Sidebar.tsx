@@ -92,24 +92,29 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
   );
 
   return (
-    <div className="w-[30%] min-w-[300px] h-full border-r flex flex-col bg-white">
+    <div className="w-full h-full border-r flex flex-col bg-white">
 
       {/* 👤 CURRENT USER */}
-      {currentUser && (
-        <div className="p-3 bg-gray-100 flex items-center gap-3 border-b">
-          <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold">
-            {currentUser.name?.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <p className="text-sm font-semibold">{currentUser.name}</p>
-            <p className="text-xs text-green-600">online</p>
-          </div>
-        </div>
-      )}
+     {currentUser && (
+  <div className="p-3 bg-gray-100 flex items-center gap-3 border-b">
+    
+    {/* Avatar */}
+    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
+      {currentUser.name?.charAt(0).toUpperCase()}
+    </div>
+
+    {/* User Info */}
+    <div>
+      <p className="text-sm font-semibold">{currentUser.name}</p>
+      <p className="text-xs text-green-600">online</p>
+    </div>
+
+  </div>
+)}
 
       {/* 🔍 SEARCH */}
-      <div className="p-3 border-b flex items-center gap-2">
-        <Search size={16} />
+      <div className="p-2 sm:p-3 border-b flex items-center gap-2">
+        <Search size={18} className="flex-shrink-0" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -121,20 +126,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
       {/* 👥 USERS */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <p className="p-3 text-gray-500">Loading...</p>
+          <p className="p-3 text-gray-500 text-sm">Loading...</p>
         ) : (
           filteredContacts.map((c) => (
             <div
               key={c.id}
               onClick={() => onSelectContact(c)}
-              className="p-3 flex items-center gap-3 border-b hover:bg-gray-100 cursor-pointer"
+              className="p-2 sm:p-3 flex items-center gap-2 sm:gap-3 border-b hover:bg-gray-100 cursor-pointer transition-colors"
             >
-              <div className="w-10 h-10 rounded-full bg-blue-300 flex items-center justify-center text-white font-bold">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-300 flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
                 {c.name?.charAt(0).toUpperCase()}
               </div>
 
-              <div>
-                <p className="text-sm font-medium">{c.name}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm font-medium truncate">{c.name}</p>
                 <p className="text-xs text-gray-500">
                   {activeUsers.includes(c.id) ? "online" : "offline"}
                 </p>
