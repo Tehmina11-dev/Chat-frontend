@@ -13,8 +13,18 @@ import { api } from "../../lib/api";
 export default function ChatPage() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [aiMessages, setAiMessages] = useState<Message[]>([]);
   const [currentUser, setCurrentUser] = useState<Contact | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
+
+  const AI_CONTACT: Contact = {
+    id: -9999,
+    name: "AI Assistant",
+    lastMsg: "Ask the AI anything",
+    time: "",
+    online: true,
+    isAI: true,
+  };
 
   const selectedRef = useRef<Contact | null>(null);
   const currentRef = useRef<Contact | null>(null);
@@ -101,6 +111,11 @@ export default function ChatPage() {
   const refreshMessages = async () => {
     if (!selectedContact || !currentUser) return;
 
+    if (selectedContact.isAI) {
+      setMessages(aiMessages);
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
 
@@ -118,13 +133,19 @@ export default function ChatPage() {
     }
   };
 
+  useEffect(() => {
+    if (selectedContact?.isAI) {
+      setMessages(aiMessages);
+    }
+  }, [selectedContact, aiMessages]);
+
   // 📥 AUTO LOAD HISTORY
   useEffect(() => {
     refreshMessages();
   }, [selectedContact, currentUser]);
 
   // 💬 SEND MESSAGE (FINAL VERSION WITH file_type AND audio_url)
-  const handleSendMessage = (payload: any) => {
+  const handleSendMessage = async (payload: any) => {
     if (!selectedContact || !currentUser) return;
 
     const messageData = {
@@ -135,6 +156,51 @@ export default function ChatPage() {
       file_type: payload.file_type || null, // ✅ ADDED
       audio_url: payload.audio_url || null, // ✅ ADDED FOR VOICE MESSAGES
     };
+
+    if (selectedContact.isAI) {
+      const userMessage: Message = {
+        id: Date.now(),
+        sender_id: currentUser.id,
+        receiver_id: selectedContact.id,
+        message_text: payload.message_text || "",
+        created_at: new Date().toISOString(),
+      };
+
+      setAiMessages((prev) => [...prev, userMessage]);
+      setMessages((prev) => [...prev, userMessage]);
+
+      try {
+        const response = await api.post("/ai/chat", {
+          prompt: payload.message_text,
+          userId: currentUser.id,
+        });
+
+        const assistantMessage: Message = {
+          id: Date.now() + 1,
+          sender_id: 0,
+          receiver_id: currentUser.id,
+          message_text: response.data.data.message,
+          created_at: new Date().toISOString(),
+        };
+
+        setAiMessages((prev) => [...prev, assistantMessage]);
+        setMessages((prev) => [...prev, assistantMessage]);
+      } catch (err) {
+        console.error("AI response failed:", err);
+        const errorMessage: Message = {
+          id: Date.now() + 2,
+          sender_id: 0,
+          receiver_id: currentUser.id,
+          message_text: "Sorry, I couldn't reach the AI assistant right now.",
+          created_at: new Date().toISOString(),
+        };
+
+        setAiMessages((prev) => [...prev, errorMessage]);
+        setMessages((prev) => [...prev, errorMessage]);
+      }
+
+      return;
+    }
 
     socket.emit("send_message", messageData);
     // ✅ Removed optimistic update - message will come via socket event

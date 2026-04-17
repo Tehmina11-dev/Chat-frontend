@@ -17,6 +17,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Contact | null>(null);
 
+  const aiContact: Contact = {
+    id: -9999,
+    name: "AI Assistant",
+    lastMsg: "Ask anything",
+    time: "",
+    online: true,
+    isAI: true,
+  };
+
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const token = localStorage.getItem("token");
@@ -111,6 +120,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
 
   </div>
 )}
+
+      {/* AI ASSISTANT */}
+      <div
+        onClick={() => onSelectContact(aiContact)}
+        className="p-3 bg-yellow-50 border-b cursor-pointer hover:bg-yellow-100 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-xs">
+            AI
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">AI Assistant</p>
+            <p className="text-xs text-gray-600 truncate">Ask questions and get smart replies</p>
+          </div>
+        </div>
+      </div>
 
       {/* 🔍 SEARCH */}
       <div className="p-2 sm:p-3 border-b flex items-center gap-2">

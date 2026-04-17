@@ -37,9 +37,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* MESSAGES */}
       <div className="flex flex-col gap-1 sm:gap-2">
         {messages?.length > 0 ? (
-          messages.map((msg, idx) => (
+          messages.map((msg) => (
             <ChatBubble
-              key={idx}
+              key={msg.id}   // ✅ FIXED HERE
               message={msg}
               isOwnMessage={msg.sender_id === currentUserId}
               currentUserId={currentUserId}

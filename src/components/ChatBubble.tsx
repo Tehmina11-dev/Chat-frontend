@@ -79,7 +79,7 @@ const ChatBubble: React.FC<Props> = ({
   // If deleted for everyone OR deleted for me, show deletion notice
   const showDeletedMessage = isDeletedForEveryone || isDeletedForMe;
 
-  // 🗑️ CHECK IF MESSAGE CAN BE DELETED (Within 2 hours - like WhatsApp)
+  // 🗑️ CHECK IF MESSAGE IS DELETABLE (Within 2 hours - like WhatsApp)
   const isMessageDeletable = () => {
     if (!message.created_at) return false;
     const messageTime = new Date(message.created_at).getTime();
@@ -88,7 +88,8 @@ const ChatBubble: React.FC<Props> = ({
     return now - messageTime < twoHoursInMs;
   };
 
-  const canDeleteMessage = isMessageDeletable() && !showDeletedMessage;
+  const isLocalMessage = message.sender_id <= 0 || message.receiver_id < 0;
+  const canDeleteMessage = !isLocalMessage && isMessageDeletable() && !showDeletedMessage;
 
   const toggleAudioPlayback = async () => {
     if (!audioRef.current) return;
@@ -122,9 +123,9 @@ const ChatBubble: React.FC<Props> = ({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // 📱 HANDLE DOUBLE TAP FOR MOBILE
+  // 📱 HANDLE DOUBLE TAP FOR MOBILE (SKIP FOR AUDIO MESSAGES)
   const handleTap = () => {
-    if (showDeletedMessage || !canDeleteMessage) return;
+    if (showDeletedMessage || !canDeleteMessage || isAudio) return;
 
     const now = Date.now();
     const timeDiff = now - lastTapRef.current;
@@ -145,19 +146,38 @@ const ChatBubble: React.FC<Props> = ({
         className={`relative max-w-[85%] sm:max-w-[70%] p-3 shadow-sm transition-all duration-200 ${
           showDeletedMessage
             ? "bg-gray-200 text-gray-500 italic rounded-lg cursor-default"
-            : `cursor-pointer hover:shadow-md active:scale-95 touch-manipulation ${
+            : `${isAudio ? "cursor-default" : "cursor-pointer hover:shadow-md active:scale-95"} touch-manipulation ${
               isOwnMessage
                 ? "bg-[#dcf8c6] text-black rounded-t-xl rounded-bl-xl rounded-br-sm"
                 : "bg-[#e5e5ea] text-black rounded-t-xl rounded-br-xl rounded-bl-sm"
             }`
         }`}
         onDoubleClick={() => {
-          if (!showDeletedMessage && canDeleteMessage) {
+          if (!showDeletedMessage && canDeleteMessage && !isAudio) {
             setShowModal(true);
           }
         }}
-        onClick={handleTap}
+        onClick={(e) => {
+          if (!isAudio) {
+            handleTap();
+          }
+        }}
       >
+        {/* DELETE ICON FOR OWN MESSAGES */}
+        {!showDeletedMessage && isOwnMessage && canDeleteMessage && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowModal(true);
+            }}
+            className="absolute top-2 right-2 p-1 rounded-full bg-white/90 text-red-600 hover:bg-red-100 z-10"
+            aria-label="Delete message"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+
         {/* 🗑️ DELETED MESSAGE */}
         {showDeletedMessage && (
           <div className="flex items-center gap-2">
@@ -184,15 +204,16 @@ const ChatBubble: React.FC<Props> = ({
               onLoadStart={() => setIsLoading(true)}
               onCanPlay={() => setIsLoading(false)}
               crossOrigin="anonymous"
-              controlsList="nodownload"
               className="hidden"
             />
             <button
+              type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 toggleAudioPlayback();
               }}
+              onDoubleClick={(e) => e.stopPropagation()}
               disabled={isLoading}
               className={`p-2 rounded-full transition flex-shrink-0 ${
                 isLoading

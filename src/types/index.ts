@@ -29,4 +29,5 @@ export interface Contact {
   lastMsg: string;
   time: string;
   online: boolean;
+  isAI?: boolean;
 }
