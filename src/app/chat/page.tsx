@@ -170,22 +170,23 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, userMessage]);
 
       try {
-        const response = await api.post("/ai/chat", {
-          prompt: payload.message_text,
-          userId: currentUser.id,
-        });
+  const response = await api.post("/ai/chat", {
+    prompt: payload.message_text,
+    userId: currentUser.id,
+  });
 
-        const assistantMessage: Message = {
-          id: Date.now() + 1,
-          sender_id: 0,
-          receiver_id: currentUser.id,
-          message_text: response.data.data.message,
-          created_at: new Date().toISOString(),
-        };
+  // Access the 'message_text' property inside the 'data' object returned by your controller
+  const assistantMessage: Message = {
+    id: Date.now() + 1,
+    sender_id: 0,
+    receiver_id: currentUser.id,
+    message_text: response.data.data.message_text, // Updated this line
+    created_at: new Date().toISOString(),
+  };
 
-        setAiMessages((prev) => [...prev, assistantMessage]);
-        setMessages((prev) => [...prev, assistantMessage]);
-      } catch (err) {
+  setAiMessages((prev) => [...prev, assistantMessage]);
+  setMessages((prev) => [...prev, assistantMessage]);
+} catch (err) {
         console.error("AI response failed:", err);
         const errorMessage: Message = {
           id: Date.now() + 2,
