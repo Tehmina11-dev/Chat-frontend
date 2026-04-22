@@ -9,6 +9,7 @@ interface ChatWindowProps {
   messages: Message[];
   currentUserId: number;
   refreshMessages: () => void;
+  onDeleteRequest: (message: Message) => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -16,6 +17,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   messages,
   currentUserId,
   refreshMessages,
+  onDeleteRequest,
 }) => {
   return (
     <div className="flex-1 p-2 sm:p-4 overflow-y-auto flex flex-col bg-[#efeae2]">
@@ -39,11 +41,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         {messages?.length > 0 ? (
           messages.map((msg) => (
             <ChatBubble
-              key={msg.id}   // ✅ FIXED HERE
+              key={msg.id}
               message={msg}
               isOwnMessage={msg.sender_id === currentUserId}
               currentUserId={currentUserId}
               refreshMessages={refreshMessages}
+              onDeleteRequest={onDeleteRequest}
             />
           ))
         ) : (

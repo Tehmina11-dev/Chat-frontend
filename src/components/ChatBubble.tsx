@@ -1,16 +1,14 @@
 "use client";
 import React, { useState, useRef } from "react";
 import { Message } from "../types";
-import DeleteModal from "./DeleteModal";
-import { api } from "../lib/api";
-import { socket } from "../lib/socket";
-import { Play, Pause, Download, FileText, Loader2, Trash2 } from "lucide-react";
+import { ChevronDown, Trash2, Pencil, Play, Pause, FileText, Loader2 } from "lucide-react";
 
 interface Props {
   message: Message;
   isOwnMessage: boolean;
   currentUserId: number;
   refreshMessages: () => void;
+  onDeleteRequest?: (message: Message) => void;
 }
 
 const ChatBubble: React.FC<Props> = ({
@@ -18,49 +16,13 @@ const ChatBubble: React.FC<Props> = ({
   isOwnMessage,
   currentUserId,
   refreshMessages,
+  onDeleteRequest,
 }) => {
-  const [showModal, setShowModal] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioDuration, setAudioDuration] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [tapCount, setTapCount] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastTapRef = useRef<number>(0);
-
-  const handleDelete = async (type: "me" | "everyone") => {
-    try {
-      setIsLoading(true);
-
-      // Send delete request via API (primary method)
-      const response = await api.put(`/messages/delete/${message.id}`, {
-        userId: currentUserId,
-        type,
-      });
-
-      if (response.status === 200) {
-        // Also emit socket event for real-time update to other users
-        socket.emit("delete_message", {
-          messageId: message.id,
-          userId: currentUserId,
-          type,
-          sender_id: message.sender_id,
-          receiver_id: message.receiver_id,
-        });
-
-        setShowModal(false);
-        refreshMessages();
-      } else {
-        alert("Failed to delete message. Please try again.");
-      }
-    } catch (err: any) {
-      console.error("Delete error:", err);
-      const errorMsg = err?.response?.data?.error || "Failed to delete message";
-      alert(errorMsg);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const isImage = 
     message.file_type?.startsWith("image/") || 
@@ -68,28 +30,6 @@ const ChatBubble: React.FC<Props> = ({
     message.file_url?.startsWith("blob:");
 
   const isAudio = !!(message.audio_url && message.message_text?.includes("Voice message"));
-
-  // 🗑️ CHECK IF MESSAGE IS DELETED FOR CURRENT USER
-  const isDeletedForMe = isOwnMessage
-    ? message.deleted_for_sender
-    : message.deleted_for_receiver;
-
-  const isDeletedForEveryone = message.deleted_for_everyone;
-
-  // If deleted for everyone OR deleted for me, show deletion notice
-  const showDeletedMessage = isDeletedForEveryone || isDeletedForMe;
-
-  // 🗑️ CHECK IF MESSAGE IS DELETABLE (Within 2 hours - like WhatsApp)
-  const isMessageDeletable = () => {
-    if (!message.created_at) return false;
-    const messageTime = new Date(message.created_at).getTime();
-    const now = new Date().getTime();
-    const twoHoursInMs = 2 * 60 * 60 * 1000;
-    return now - messageTime < twoHoursInMs;
-  };
-
-  const isLocalMessage = message.sender_id <= 0 || message.receiver_id < 0;
-  const canDeleteMessage = !isLocalMessage && isMessageDeletable() && !showDeletedMessage;
 
   const toggleAudioPlayback = async () => {
     if (!audioRef.current) return;
@@ -123,76 +63,67 @@ const ChatBubble: React.FC<Props> = ({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // 📱 HANDLE DOUBLE TAP FOR MOBILE (SKIP FOR AUDIO MESSAGES)
-  const handleTap = () => {
-    if (showDeletedMessage || !canDeleteMessage || isAudio) return;
-
-    const now = Date.now();
-    const timeDiff = now - lastTapRef.current;
-
-    if (timeDiff < 300 && timeDiff > 0) {
-      // Double tap detected
-      setShowModal(true);
-      lastTapRef.current = 0;
-    } else {
-      // First tap
-      lastTapRef.current = now;
-    }
+  const handleDeleteClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setShowDropdown(false);
+    onDeleteRequest?.(message);
   };
 
   return (
     <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-4 px-4`}>
       <div
-        className={`relative max-w-[85%] sm:max-w-[70%] p-3 shadow-sm transition-all duration-200 ${
-          showDeletedMessage
-            ? "bg-gray-200 text-gray-500 italic rounded-lg cursor-default"
-            : `${isAudio ? "cursor-default" : "cursor-pointer hover:shadow-md active:scale-95"} touch-manipulation ${
-              isOwnMessage
+        className={`relative group max-w-[85%] sm:max-w-[70%] p-3 shadow-sm transition-all duration-200 ${
+          isAudio
+            ? "cursor-default"
+            : "cursor-pointer hover:shadow-md active:scale-95 touch-manipulation " +
+              (isOwnMessage
                 ? "bg-[#dcf8c6] text-black rounded-t-xl rounded-bl-xl rounded-br-sm"
-                : "bg-[#e5e5ea] text-black rounded-t-xl rounded-br-xl rounded-bl-sm"
-            }`
+                : "bg-[#e5e5ea] text-black rounded-t-xl rounded-br-xl rounded-bl-sm")
         }`}
-        onDoubleClick={() => {
-          if (!showDeletedMessage && canDeleteMessage && !isAudio) {
-            setShowModal(true);
-          }
-        }}
-        onClick={(e) => {
-          if (!isAudio) {
-            handleTap();
-          }
-        }}
       >
-        {/* DELETE ICON FOR OWN MESSAGES */}
-        {!showDeletedMessage && isOwnMessage && canDeleteMessage && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowModal(true);
-            }}
-            className="absolute top-2 right-2 p-1 rounded-full bg-white/90 text-red-600 hover:bg-red-100 z-10"
-            aria-label="Delete message"
-          >
-            <Trash2 size={16} />
-          </button>
+
+        {/* � TEXT */}
+        {isOwnMessage && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDropdown((prev) => !prev);
+              }}
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-500 hover:text-gray-800"
+              aria-label="Open message actions"
+            >
+              <ChevronDown size={16} />
+            </button>
+
+            {showDropdown && (
+              <div className="absolute right-0 top-11 w-32 bg-white shadow-lg rounded-md border z-50 py-1">
+                <button
+                  type="button"
+                  onClick={handleDeleteClick}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <Trash2 size={14} /> Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <Pencil size={14} /> Edit
+                </button>
+              </div>
+            )}
+          </>
         )}
 
-        {/* 🗑️ DELETED MESSAGE */}
-        {showDeletedMessage && (
-          <div className="flex items-center gap-2">
-            <Trash2 size={16} className="flex-shrink-0" />
-            <p className="text-sm">This message was deleted</p>
-          </div>
-        )}
-
-        {/* 💬 TEXT */}
-        {!showDeletedMessage && message.message_text && !isAudio && (
+        {message.message_text && !isAudio && (
           <p className="font-sans break-words leading-relaxed">{message.message_text}</p>
         )}
 
         {/* 🎙️ AUDIO MESSAGE */}
-        {!showDeletedMessage && isAudio && message.audio_url && (
+        {isAudio && message.audio_url && (
           <div className="flex items-center gap-3 bg-white/50 p-3 rounded-lg max-w-xs">
             <audio
               ref={audioRef}
@@ -258,7 +189,7 @@ const ChatBubble: React.FC<Props> = ({
         )}
 
         {/* 📎 FILE / IMAGE */}
-        {!showDeletedMessage && message.file_url && !isAudio && (
+        {message.file_url && !isAudio && (
           <div className={message.message_text ? "mt-3" : ""}>
             {isImage ? (
               <div className="rounded-xl overflow-hidden border-2 border-white/50 shadow-sm">
@@ -298,15 +229,6 @@ const ChatBubble: React.FC<Props> = ({
         )}
       </div>
 
-      {/* 🗑 DELETE MODAL */}
-      {showModal && (
-        <DeleteModal
-          onClose={() => setShowModal(false)}
-          onDeleteForMe={() => handleDelete("me")}
-          onDeleteForEveryone={() => handleDelete("everyone")}
-          isLoading={isLoading}
-        />
-      )}
     </div>
   );
 };
