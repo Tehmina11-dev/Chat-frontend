@@ -296,7 +296,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import ChatWindow from "../../components/ChatWindow";
 import MessageInput from "../../components/MessageInput";
-import DeleteModal from "../../components/deleteModal";
+import DeleteModal from "../../components/DeleteModal";
 import { Menu } from "lucide-react";
 import { Contact, Message } from "../../types/index";
 import { socket } from "../../lib/socket";
