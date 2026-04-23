@@ -1,14 +1,15 @@
 "use client";
 import React, { useState, useRef } from "react";
-import { Message } from "../types";
+import { Message, GroupMessage } from "../types";
 import { ChevronDown, Trash2, Pencil, Play, Pause, FileText, Loader2 } from "lucide-react";
 
 interface Props {
-  message: Message;
+  message: Message | GroupMessage;
   isOwnMessage: boolean;
   currentUserId: number;
   refreshMessages: () => void;
-  onDeleteRequest?: (message: Message) => void;
+  onDeleteRequest?: (message: Message | GroupMessage) => void;
+  isGroupMessage?: boolean;
 }
 
 const ChatBubble: React.FC<Props> = ({
@@ -17,6 +18,7 @@ const ChatBubble: React.FC<Props> = ({
   currentUserId,
   refreshMessages,
   onDeleteRequest,
+  isGroupMessage = false,
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -116,6 +118,13 @@ const ChatBubble: React.FC<Props> = ({
               </div>
             )}
           </>
+        )}
+
+        {/* 👤 SENDER NAME (for group messages) */}
+        {isGroupMessage && !isOwnMessage && 'sender_name' in message && (
+          <div className="text-xs text-gray-600 mb-1 font-medium">
+            {message.sender_name}
+          </div>
         )}
 
         {message.message_text && !isAudio && (

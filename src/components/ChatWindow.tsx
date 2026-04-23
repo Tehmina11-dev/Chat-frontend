@@ -1,15 +1,17 @@
 "use client";
 
-import React from "react";
-import { Contact, Message } from "../types/index";
+import React, { useEffect, useRef } from "react";
+import { Contact, Message, GroupMessage } from "../types/index";
 import ChatBubble from "./ChatBubble";
 
 interface ChatWindowProps {
-  contact: Contact;
-  messages: Message[];
+  contact: Contact | null;
+  messages: Message[] | GroupMessage[];
   currentUserId: number;
   refreshMessages: () => void;
-  onDeleteRequest: (message: Message) => void;
+  onDeleteRequest: (message: Message | GroupMessage) => void;
+  isGroupChat?: boolean;
+  groupName?: string;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -18,14 +20,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   currentUserId,
   refreshMessages,
   onDeleteRequest,
+  isGroupChat = false,
+  groupName,
 }) => {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Determine display name
+  const displayName = isGroupChat ? (groupName || "Group Chat") : (contact?.name || "Chat");
+
   return (
     <div className="flex-1 p-2 sm:p-4 overflow-y-auto flex flex-col bg-[#efeae2]">
 
       {/* HEADER */}
       <div className="flex items-center justify-between mb-2 sm:mb-4">
         <h2 className="text-base sm:text-lg font-semibold truncate">
-          {contact.name}
+          {displayName}
         </h2>
 
         <button
@@ -37,7 +51,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       </div>
 
       {/* MESSAGES */}
-      <div className="flex flex-col gap-1 sm:gap-2">
+      <div className="flex flex-col gap-1 sm:gap-2" style={{ scrollBehavior: "smooth" }}>
         {messages?.length > 0 ? (
           messages.map((msg) => (
             <ChatBubble
@@ -47,6 +61,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               currentUserId={currentUserId}
               refreshMessages={refreshMessages}
               onDeleteRequest={onDeleteRequest}
+              isGroupMessage={isGroupChat}
             />
           ))
         ) : (
@@ -54,6 +69,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             No messages yet
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
     </div>
   );

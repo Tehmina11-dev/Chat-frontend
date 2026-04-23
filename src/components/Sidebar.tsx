@@ -4,13 +4,16 @@ import React, { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { socket } from "../lib/socket";
 import { api } from "../lib/api";
-import { Contact } from "../types";
+import { Contact, Group } from "../types";
 
 interface SidebarProps {
   onSelectContact: (contact: Contact) => void;
+  groups?: Group[];
+  onSelectGroup?: (group: Group) => void;
+  activeGroupId?: number | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onSelectContact, groups = [], onSelectGroup, activeGroupId }) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [activeUsers, setActiveUsers] = useState<number[]>([]);
   const [search, setSearch] = useState("");
@@ -105,7 +108,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
 
       {/* 👤 CURRENT USER */}
      {currentUser && (
-  <div className="p-3 bg-gray-100 flex items-center gap-3 border-b">
+  <div className="p-3 bg-gray-100 flex items-center gap-3 border-b flex-shrink-0">
     
     {/* Avatar */}
     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
@@ -124,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
       {/* AI ASSISTANT */}
       <div
         onClick={() => onSelectContact(aiContact)}
-        className="p-3 bg-yellow-50 border-b cursor-pointer hover:bg-yellow-100 transition-colors"
+        className="p-3 bg-yellow-50 border-b cursor-pointer hover:bg-yellow-100 transition-colors flex-shrink-0"
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-xs">
@@ -138,7 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
       </div>
 
       {/* 🔍 SEARCH */}
-      <div className="p-2 sm:p-3 border-b flex items-center gap-2">
+      <div className="p-2 sm:p-3 border-b flex items-center gap-2 flex-shrink-0">
         <Search size={18} className="flex-shrink-0" />
         <input
           value={search}
@@ -148,8 +151,35 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact }) => {
         />
       </div>
 
+      {/* 👥 GROUPS */}
+      {groups.length > 0 && (
+        <div className="border-b flex-shrink-0">
+          <div className="p-2 sm:p-3">
+            <h3 className="font-semibold text-gray-700 text-sm mb-2">Groups</h3>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {groups.map((group) => (
+                <div
+                  key={group.id}
+                  onClick={() => onSelectGroup?.(group)}
+                  className={`p-2 rounded-lg cursor-pointer transition-colors ${
+                    activeGroupId === group.id
+                      ? "bg-secondary border-l-4 border-primary"
+                      : "hover:bg-gray-50"
+                  }`}
+                >
+                  <div className="font-medium text-sm">{group.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {group.created_at ? new Date(group.created_at).toLocaleDateString() : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 👥 USERS */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0 scroll-smooth">
         {loading ? (
           <p className="p-3 text-gray-500 text-sm">Loading...</p>
         ) : (

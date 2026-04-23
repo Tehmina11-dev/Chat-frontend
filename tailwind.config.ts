@@ -9,6 +9,8 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        primary: "#ffb533",
+        secondary: "#ffeae2",
         whatsapp: {
           teal: "#008069",
           light: "#25D366",
@@ -17,6 +19,13 @@ const config: Config = {
           incoming: "#ffffff",
           outgoing: "#dcf8c6",
         },
+      },
+      fontFamily: {
+        heading: ["Poppins", "sans-serif"],
+        sans: ["Inter", "sans-serif"],
+      },
+      boxShadow: {
+        card: "0 10px 30px rgba(255,181,51,0.2)",
       },
     },
   },
