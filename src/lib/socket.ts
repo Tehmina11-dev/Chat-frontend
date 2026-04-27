@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client";
 import { Message, GroupMessage } from "../types";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
 
 export const socket = io(BACKEND_URL, {
   autoConnect: false,

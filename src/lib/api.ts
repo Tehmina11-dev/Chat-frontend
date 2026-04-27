@@ -1,7 +1,7 @@
 import axios from "axios";
 import { Group, GroupMessage } from "../types";
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api` : "http://localhost:5000/api";
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api` : "http://localhost:4000/api";
 
 export const api = axios.create({
   baseURL: API_URL,

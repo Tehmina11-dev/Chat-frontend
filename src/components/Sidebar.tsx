@@ -118,7 +118,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onSelectContact, groups = [], onSelec
     {/* User Info */}
     <div>
       <p className="text-sm font-semibold">{currentUser.name}</p>
-      <p className="text-xs text-green-600">online</p>
+      <div className="text-xs text-green-600">online</div>
     </div>
 
   </div>

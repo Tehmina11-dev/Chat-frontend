@@ -72,7 +72,7 @@ const ChatBubble: React.FC<Props> = ({
   };
 
   return (
-    <div className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-4 px-4`}>
+    <div className={`flex w-full ${isOwnMessage ? "justify-end" : "justify-start"} mb-4 px-4`}>
       <div
         className={`relative group max-w-[85%] sm:max-w-[70%] p-3 shadow-sm transition-all duration-200 ${
           isAudio
